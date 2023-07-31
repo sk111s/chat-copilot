@@ -35,12 +35,12 @@ internal static class ServicesExtensions
             .ValidateOnStart()
             .PostConfigure(TrimStringProperties);
 
-        // Authorization configuration
+        /*// Authorization configuration
         services.AddOptions<AuthorizationOptions>()
             .Bind(configuration.GetSection(AuthorizationOptions.PropertyName))
             .ValidateOnStart()
             .ValidateDataAnnotations()
-            .PostConfigure(TrimStringProperties);
+            .PostConfigure(TrimStringProperties);*/
 
         // Memory store configuration
         services.AddOptions<MemoriesStoreOptions>()
@@ -75,7 +75,7 @@ internal static class ServicesExtensions
         return services;
     }
 
-    /// <summary>
+    /*/// <summary>
     /// Add authorization services
     /// </summary>
     internal static IServiceCollection AddAuthorization(this IServiceCollection services, IConfiguration configuration)
@@ -86,13 +86,6 @@ internal static class ServicesExtensions
             case AuthorizationOptions.AuthorizationType.AzureAd:
                 services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                     .AddMicrosoftIdentityWebApi(configuration.GetSection($"{AuthorizationOptions.PropertyName}:AzureAd"));
-                break;
-
-            case AuthorizationOptions.AuthorizationType.ApiKey:
-                services.AddAuthentication(ApiKeyAuthenticationHandler.AuthenticationScheme)
-                    .AddScheme<ApiKeyAuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
-                        ApiKeyAuthenticationHandler.AuthenticationScheme,
-                        options => options.ApiKey = config.ApiKey);
                 break;
 
             case AuthorizationOptions.AuthorizationType.None:
@@ -107,7 +100,7 @@ internal static class ServicesExtensions
         }
 
         return services;
-    }
+    }*/
 
     /// <summary>
     /// Trim all string properties, recursively.

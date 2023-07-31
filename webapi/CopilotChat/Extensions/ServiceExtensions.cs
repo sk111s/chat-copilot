@@ -4,15 +4,20 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using SemanticKernel.Service.Auth;
 using SemanticKernel.Service.CopilotChat.Models;
 using SemanticKernel.Service.CopilotChat.Options;
 using SemanticKernel.Service.CopilotChat.Storage;
 using SemanticKernel.Service.Options;
 using SemanticKernel.Service.Services;
 using Tesseract;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.Identity.Web;
 
 namespace SemanticKernel.Service.CopilotChat.Extensions;
 
@@ -185,6 +190,54 @@ public static class CopilotChatServiceExtensions
         services.AddSingleton<ChatParticipantRepository>(new ChatParticipantRepository(chatParticipantStorageContext));
 
         return services;
+    }
+
+    /// <summary>
+    /// Add authentication services
+    /// </summary>
+    public static IServiceCollection AddCopilotChatAuthentication(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddScoped<IAuthInfo, AuthInfo>();
+        var config = services.BuildServiceProvider().GetRequiredService<IOptions<ChatAuthenticationOptions>>().Value;
+        switch (config.Type)
+        {
+            case ChatAuthenticationOptions.AuthenticationType.AzureAd:
+                services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                    .AddMicrosoftIdentityWebApi(configuration.GetSection($"{ChatAuthenticationOptions.PropertyName}:AzureAd"));
+                break;
+
+            case ChatAuthenticationOptions.AuthenticationType.None:
+                services.AddAuthentication(PassThroughAuthenticationHandler.AuthenticationScheme)
+                    .AddScheme<AuthenticationSchemeOptions, PassThroughAuthenticationHandler>(
+                        authenticationScheme: PassThroughAuthenticationHandler.AuthenticationScheme,
+                        configureOptions: null);
+                break;
+
+            default:
+                throw new InvalidOperationException($"Invalid authentication type '{config.Type}'.");
+        }
+
+        return services;
+    }
+
+    /// <summary>
+    /// Add authorization services for the copilot chat.
+    /// </summary>
+    public static IServiceCollection AddCopilotChatAuthorization(this IServiceCollection services)
+    {
+        return services.AddScoped<IAuthorizationHandler, ChatOwnerAuthorizationHandler>()
+            .AddAuthorizationCore(options =>
+            {
+                options.DefaultPolicy = new AuthorizationPolicyBuilder()
+                    .RequireAuthenticatedUser()
+                    .Build();
+
+                options.AddPolicy(AuthPolicyName.RequireChatOwner, builder =>
+                {
+                    builder.RequireAuthenticatedUser()
+                        .AddRequirements(new ChatOwnerRequirement());
+                });
+            });
     }
 
     /// <summary>
